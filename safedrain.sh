@@ -5,14 +5,17 @@
 ## The current Kubernets drain operation has a limitation in that it first
 ## terminate pods before starting new ones. This script will ensure the
 ## pods are rolled out on another node before terminating them.
-## Any deployment/statefulset should have a rollout strategy defined in the 
-## manifest similar to below:
+## Any deployment/statefulset should have a readinessProbe defined in the 
+## manifest such as:
 ##
-##       strategy:
-##         type: RollingUpdate
-##         rollingUpdate:
-##           maxSurge: 1
-##           maxUnavailable: 0
+## containers:
+##          - name: my-pod            
+##            readinessProbe:     #check whether the app is ready to recive traffic
+##              httpGet:
+##                path: /
+##                port: 80
+##             failureThreshold: 3          # Stop sending traffic if the probe fails after 10sx3 = 30 seconds
+##             periodSeconds: 10
 ##
 set -e
 NODE_NAME=$1
@@ -55,7 +58,7 @@ function rollout() {
        if [ "$PODLIST"  != "$PODLIST_ALL_NODES" ]; then
           echo "A pod $PODLIST was found with replicas on other nodes. Multi node replicas can be ignored for a re-rollout"
        else
-                read -p "A pod belonging to deployment $DEPLOY_NAME was found on $NODE_NAME, press any key to rollout the deployment on another node?" confirm 
+                read -p "A pod belonging to deployment $DEPLOY_NAME was found on $NODE_NAME, press enter to rollout the deployment on another node?" confirm 
                 echo $(kubectl rollout restart -n $NAMESPACE $DEPTYPE $DEPLOY_NAME)
 
                 ## Keep looping until the pod a been terminated from the node
